@@ -15,16 +15,16 @@ pub struct LCMeasurement {
 #[derive(Debug, Clone)]
 pub struct Compound {
     /// The name of the compound
-    name: String,
+    pub name: String,
 
     /// A dictionary of ions with their associated information
-    ions: HashMap<String, HashMap<String, Option<f64>>>,
+    pub ions: HashMap<String, HashMap<String, Option<f64>>>,
 
     /// List of MS2 data (type not specified in original, so using a generic Vec)
     ms2: Vec<()>,
 
     /// Additional ion information
-    ion_info: Vec<String>,
+    pub ion_info: Vec<String>,
 
     /// Calibration curve data
     calibration_curve: HashMap<String, f64>,

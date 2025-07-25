@@ -10,3 +10,4 @@ mzdata = "0.56.0"
 rayon = "1.10.0"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+ndarray = "0.16.1"
