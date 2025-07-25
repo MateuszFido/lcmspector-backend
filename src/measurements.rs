@@ -24,7 +24,7 @@ pub struct Compound {
     ms2: Vec<()>,
 
     /// Additional ion information
-    ion_info: Vec<()>,
+    ion_info: Vec<String>,
 
     /// Calibration curve data
     calibration_curve: HashMap<String, f64>,
@@ -32,15 +32,18 @@ pub struct Compound {
 
 impl Compound {
     /// Constructor method equivalent to __init__
-    fn new(name: String, ions: Vec<String>, ion_info: Vec<()>) -> Self {
+    fn new(name: String, ions: Vec<f64>, ion_info: Vec<String>) -> Self {
         Compound {
-            name,
+            name: name.clone(),
             ions: ions
                 .into_iter()
-                .map(|ion| {
+                .enumerate()
+                .map(|(idx, ion)| {
+                    let ion_name = format!("Ion_{}", idx + 1);
                     (
-                        ion,
+                        ion_name,
                         HashMap::from([
+                            ("Mass".to_string(), Some(ion)),
                             ("RT".to_string(), None),
                             ("MS Intensity".to_string(), None),
                             ("LC Intensity".to_string(), None),
@@ -52,6 +55,11 @@ impl Compound {
             ion_info,
             calibration_curve: HashMap::new(),
         }
+    }
+
+    /// Create a Compound from a JSON entry in the ion lists
+    pub fn from_ion_list_entry(name: String, ions: &Vec<f64>, ion_info: &Vec<String>) -> Self {
+        Self::new(name, ions.clone(), ion_info.clone())
     }
 }
 

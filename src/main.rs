@@ -4,6 +4,7 @@ pub mod processing;
 
 use crate::loading::load_mzml;
 use std::env;
+use std::process;
 
 fn main() {
     println!(
@@ -12,12 +13,24 @@ fn main() {
     );
     let args: Vec<String> = env::args().collect();
 
-    for (i, file_path) in args.iter().enumerate() {
-        if i == 0 {
-            continue; // Skip the first argument as it's the program name
-        }
+    // Require exactly 3 arguments: program name, MS file path, and ion list name
+    if args.len() != 3 {
+        eprintln!("Usage: {} <ms_file_path> <ion_list_name>", args[0]);
+        process::exit(1);
+    }
 
-        println!("Reading from: {file_path}");
-        load_mzml(file_path);
+    let ms_file_path = &args[1];
+    let ion_list_name = &args[2];
+
+    println!("Reading from: {}", ms_file_path);
+    println!("Using ion list: {}", ion_list_name);
+
+    let (ms1_scans, compounds) = load_mzml(ms_file_path, ion_list_name);
+
+    println!("Loaded {} compounds", compounds.len());
+
+    // Optional: print out the compounds for verification
+    for compound in &compounds {
+        println!("{}", compound);
     }
 }
