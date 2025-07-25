@@ -6,7 +6,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::time::Instant;
 
-pub fn load_mzml(path: &str, ion_list_name: &str) -> (Vec<MultiLayerSpectrum>, Vec<Compound>) {
+pub fn load_ms1_scans(path: &str) -> Vec<MultiLayerSpectrum> {
     let now = Instant::now();
 
     // Load MzML file
@@ -15,6 +15,18 @@ pub fn load_mzml(path: &str, ion_list_name: &str) -> (Vec<MultiLayerSpectrum>, V
 
     // Parallel processing of scans
     let ms1_scans: Vec<MultiLayerSpectrum> = reader.filter(|scan| scan.ms_level() == 1).collect();
+
+    println!(
+        "Loaded {} MS1 scans in {} seconds.",
+        ms1_scans.len(),
+        now.elapsed().as_secs_f32()
+    );
+
+    ms1_scans
+}
+
+pub fn load_ion_lists(ion_list_name: &str) -> Vec<Compound> {
+    let now = Instant::now();
 
     // Load ion lists
     let ion_lists_file = File::open("ion_lists.json").expect("Could not open ion lists file");
@@ -53,11 +65,10 @@ pub fn load_mzml(path: &str, ion_list_name: &str) -> (Vec<MultiLayerSpectrum>, V
     };
 
     println!(
-        "Loaded {} scans and {} compounds in {} seconds.",
-        ms1_scans.len(),
+        "Loaded {} compounds in {} seconds.",
         compounds.len(),
         now.elapsed().as_secs_f32()
     );
 
-    (ms1_scans, compounds)
+    compounds
 }
