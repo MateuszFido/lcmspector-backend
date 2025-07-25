@@ -2,7 +2,7 @@
 
 ## Overview
 
-LCMSpector is a high-performance Rust-based backend tool for processing mass spectrometry data files, specifically designed to handle .mzML file formats. The tool focuses on extracting and processing MS1 level scans with efficient, parallel processing capabilities.
+This is a Rust-based backend of ![LCMSpector](https://github.com/MateuszFido/LCMSpector), a high-performance tool for processing mass spectrometry data files, specifically designed to handle .mzML file formats. The tool focuses on extracting and processing MS1 level scans with efficient, parallel processing capabilities.
 
 ## Features
 
