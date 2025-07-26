@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a Rust-based backend of ![LCMSpector](https://github.com/MateuszFido/LCMSpector), a high-performance tool for processing mass spectrometry data files, specifically designed to handle .mzML file formats. The tool focuses on extracting and processing MS1 level scans with efficient, parallel processing capabilities.
+This is a backend of [LCMSpector](https://github.com/MateuszFido/LCMSpector), originally written in Python, which is a high-performance GUI application for processing mass spectrometry data files, specifically designed to handle .mzML file formats. This backend version focuses on extracting and processing MS1 level scans with efficient, parallel processing capabilities and advanced data handling features.
 
 ## Features
 
@@ -10,6 +10,9 @@ This is a Rust-based backend of ![LCMSpector](https://github.com/MateuszFido/LCM
 - Parallel scan extraction
 - MS1 level scan filtering
 - Performance timing for data loading
+- Ion list loading and processing
+- JSON serialization support
+- Advanced data manipulation with ndarray
 
 ## Prerequisites
 
@@ -21,6 +24,10 @@ This is a Rust-based backend of ![LCMSpector](https://github.com/MateuszFido/LCM
 - memmap2 (v0.9.7): Memory-mapped file support
 - mzdata (v0.56.0): Mass spectrometry data processing
 - rayon (v1.10.0): Data parallelism library
+- mmap (v0.1.1): Memory mapping utilities
+- serde_json (v1.0): JSON serialization
+- serde (v1.0): Serialization framework
+- ndarray (v0.16.1): N-dimensional array library with serialization support
 
 ## Installation
 
@@ -36,6 +43,8 @@ This is a Rust-based backend of ![LCMSpector](https://github.com/MateuszFido/LCM
    ```
 
 ## Usage
+
+### Processing .mzML Files
 
 Run the application by providing one or more .mzML files as arguments:
 
@@ -53,9 +62,23 @@ The tool will:
 - Extract MS1 level scans
 - Print the number of scans and processing time
 
+### Loading Ion Lists
+
+The application supports loading ion lists from JSON files, enabling advanced data processing and analysis:
+
+```rust
+let ion_lists = load_ion_lists("path/to/ion_lists.json");
+```
+
 ## Performance
 
-LCMSpector uses Rust's parallel processing capabilities to efficiently handle mass spectrometry data files. The `load_mzml` function provides timing information for each file processed.
+LCMSpector leverages Rust's parallel processing capabilities to efficiently handle mass spectrometry data files. The `load_mzml` and `load_ion_lists` functions provide precise timing information for each file processed.
+
+## Data Handling
+
+- Supports memory-mapped file reading for efficient large file processing
+- Utilizes ndarray for advanced numerical computations
+- Provides JSON serialization for easy data interchange
 
 ## Testing
 
