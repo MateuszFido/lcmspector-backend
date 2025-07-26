@@ -21,18 +21,18 @@ pub struct Compound {
     pub ions: HashMap<String, HashMap<String, Option<f64>>>,
 
     /// List of MS2 data (type not specified in original, so using a generic Vec)
-    ms2: Vec<()>,
+    pub ms2: Vec<()>,
 
     /// Additional ion information
     pub ion_info: Vec<String>,
 
     /// Calibration curve data
-    calibration_curve: HashMap<String, f64>,
+    pub calibration_curve: HashMap<String, f64>,
 }
 
 impl Compound {
     /// Constructor method equivalent to __init__
-    fn new(name: String, ions: Vec<f64>, ion_info: Vec<String>) -> Self {
+    pub fn new(name: String, ions: Vec<f64>, ion_info: Vec<String>) -> Self {
         Compound {
             name: name.clone(),
             ions: ions
@@ -71,5 +71,24 @@ impl fmt::Display for Compound {
             "Compound: {}, ions: {:?}, ion info: {:?}",
             self.name, self.ions, self.ion_info
         )
+    }
+}
+
+impl MSMeasurement {
+    /// Create an MSMeasurement from MultiLayerSpectrum data and a list of Compounds
+    pub fn from_data(
+        data: Vec<MultiLayerSpectrum>,
+        ion_list: &Vec<Compound>,
+        mass_accuracy: f32,
+    ) -> Self {
+        use crate::processing::construct_xics;
+
+        let xics = construct_xics(&data, ion_list, mass_accuracy as f64);
+
+        MSMeasurement {
+            mass_accuracy,
+            data,
+            xics,
+        }
     }
 }
