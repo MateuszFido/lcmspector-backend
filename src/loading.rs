@@ -26,8 +26,6 @@ pub fn load_ms1_scans(path: &str) -> Vec<MultiLayerSpectrum> {
 }
 
 pub fn load_ion_lists(ion_list_name: &str) -> Vec<Compound> {
-    let now = Instant::now();
-
     // Load ion lists
     let ion_lists_file = File::open("ion_lists.json").expect("Could not open ion lists file");
     let ion_lists_reader = BufReader::new(ion_lists_file);
@@ -63,12 +61,5 @@ pub fn load_ion_lists(ion_list_name: &str) -> Vec<Compound> {
     } else {
         Vec::new()
     };
-
-    println!(
-        "Loaded {} compounds in {} seconds.",
-        compounds.len(),
-        now.elapsed().as_secs_f32()
-    );
-
     compounds
 }

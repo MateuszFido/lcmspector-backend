@@ -1,21 +1,24 @@
 use crate::measurements::Compound;
-use mzdata::spectrum::{MultiLayerSpectrum, SpectrumLike};
+use mzdata::spectrum::MultiLayerSpectrum;
+use mzdata::spectrum::SpectrumLike;
 use ndarray::Array2;
+use std::iter::zip;
 
-pub fn construct_xics(
-    data: &Vec<MultiLayerSpectrum>,
-    ion_list: &Vec<Compound>,
+pub fn construct_xics<'a>(
+    data: &'a [MultiLayerSpectrum],
+    ion_list: &'a [Compound],
     mass_accuracy: f64,
 ) -> Vec<Compound> {
-    let mut compounds = ion_list.clone();
-
+    let mut compounds = ion_list.to_vec();
     for compound in &mut compounds {
-        for (ion, ion_data) in compound.ions.iter_mut() {
-            let mut xic: Vec<f64> = Vec::new();
-            let mut scan_id = Vec::new();
-
+        for (ion_name, ion_data) in &mut compound.ions {
+            let mut intensities = Vec::new();
+            let mut scan_times = Vec::new();
+            println!("{ion_name}");
             // Calculate mass range
-            let mass = ion.parse::<f64>().unwrap();
+            let mass = ion_name
+                .parse::<f64>()
+                .unwrap_or_else(|e| panic!("Failed to parse mass: {e}"));
             let mass_range = (mass - 3.0 * mass_accuracy, mass + 3.0 * mass_accuracy);
 
             // Safeguard for mass range
@@ -25,20 +28,24 @@ pub fn construct_xics(
                 mass_range
             };
 
-            for scan in data.iter() {
-                for peakset in scan.peaks.iter() {
-                    for peak in peakset.peaks.iter() {
-                        if peak.mz >= mass_range.0 && peak.mz <= mass_range.1 {
-                            xic.push(peak.intensity.into());
-                            scan_id.push(scan.description.acquisition.start_time());
+            for spectrum in data {
+                if let Some(arrays) = spectrum.arrays.as_ref() {
+                    for (mz, intensity) in zip(
+                        arrays.mzs().unwrap().iter(),
+                        arrays.intensities().unwrap().iter(),
+                    ) {
+                        if *mz >= mass_range.0 && *mz <= mass_range.1 {
+                            intensities.push(*intensity as f64);
+                            scan_times.push(spectrum.description.acquisition.start_time());
                         }
                     }
                 }
             }
 
             // Create XIC array
-            let xic_array = Array2::from_shape_vec((2, xic.len()), [scan_id, xic].concat())
-                .expect("Failed to create XIC array");
+            let xic_array =
+                Array2::from_shape_vec((2, intensities.len()), [scan_times, intensities].concat())
+                    .expect("Failed to create XIC array");
 
             if xic_array.is_empty() {
                 ion_data.insert("MS Intensity".to_string(), None);
@@ -72,22 +79,41 @@ pub fn construct_xics(
 mod tests {
     use super::*;
     use std::collections::HashMap;
+    use std::{thread, time};
 
     #[test]
     fn test_construct_xics() {
-        // Create mock Compound
-        let mut ions = HashMap::new();
-        ions.insert(
-            "49.5028".to_string(),
-            HashMap::from([("Mass".to_string(), Some(49.5028))]),
-        );
-        let ion_list = vec![Compound {
-            name: "Test Compound".to_string(),
-            ions,
-            ms2: Vec::new(),
-            ion_info: Vec::new(),
-            calibration_curve: HashMap::new(),
-        }];
+        // open the ion list from ion_lists.json
+        let ion_list_file = std::fs::File::open("ion_lists.json")
+            .unwrap_or_else(|e| panic!("Couldn't open ion list file: {e}"));
+        let ion_list_reader = std::io::BufReader::new(ion_list_file);
+        let ion_list: serde_json::Value = serde_json::from_reader(ion_list_reader)
+            .unwrap_or_else(|e| panic!("Failed to parse ion list JSON: {e}"));
+
+        // Take short-chain fatty acids
+        let ion_list = ion_list["scfas"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .map(|(name, compound_data)| Compound {
+                name: name.to_string(),
+                ions: HashMap::from_iter(
+                    compound_data["ions"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|ion| (ion.to_string(), HashMap::new())),
+                ),
+                ion_info: compound_data["info"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|info| info.as_str().unwrap().to_string())
+                    .collect(),
+                calibration_curve: HashMap::new(),
+                ms2: Vec::new(),
+            })
+            .collect::<Vec<Compound>>();
 
         // Read data in from tests/ANIL_1mM_1_neg.mzml
         let file = std::fs::File::open("tests/ANIL_1mM_1_neg.mzml").unwrap();
@@ -103,14 +129,22 @@ mod tests {
         let result = construct_xics(&data, &ion_list, 0.0001);
 
         // Verify results
-        assert_eq!(result.len(), 1);
+        assert_eq!(result.len(), 4);
         let compound = &result[0];
-        assert_eq!(compound.name, "Test Compound");
+        assert_eq!(compound.name, "Acetate");
+
+        let negative_mode = [59.0139, 73.0295, 87.04515];
 
         // Check that RT and MS Intensity have been populated
-        for (_, ion_data) in &compound.ions {
-            assert!(ion_data.contains_key("RT"));
-            assert!(ion_data.contains_key("MS Intensity"));
+        for (ion, ion_data) in compound.ions.iter() {
+            if negative_mode
+                .iter()
+                .any(|negative_mode_ion| ion.parse::<f64>().unwrap() == *negative_mode_ion)
+            {
+                assert!(ion_data.contains_key("RT"));
+                assert!(ion_data.contains_key("MS Intensity"));
+                assert!(ion_data.get("MS Intensity").unwrap().is_some());
+            }
         }
     }
 }
