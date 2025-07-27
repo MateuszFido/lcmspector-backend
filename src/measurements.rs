@@ -37,13 +37,12 @@ impl Compound {
             name: name.clone(),
             ions: ions
                 .into_iter()
-                .enumerate()
-                .map(|(idx, ion)| {
-                    let ion_name = format!("Ion_{}", idx + 1);
+                .map(|(ion)| {
+                    let ion_name = format!("{ion}");
                     (
                         ion_name,
                         HashMap::from([
-                            ("Mass".to_string(), Some(ion)),
+                            ("m/z".to_string(), Some(ion)),
                             ("RT".to_string(), None),
                             ("MS Intensity".to_string(), None),
                             ("LC Intensity".to_string(), None),

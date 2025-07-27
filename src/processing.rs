@@ -14,7 +14,7 @@ pub fn construct_xics<'a>(
         for (ion_name, ion_data) in &mut compound.ions {
             let mut intensities = Vec::new();
             let mut scan_times = Vec::new();
-            println!("{ion_name}");
+            println!("{ion_name}, {ion_data:?}");
             // Calculate mass range
             let mass = ion_name
                 .parse::<f64>()
@@ -55,6 +55,10 @@ pub fn construct_xics<'a>(
             // Update compound ion data
             ion_data.insert("MS Intensity".to_string(), Some(xic_array.sum()));
 
+            if ion_data.get("MS Intensity").is_none() || xic_array.shape()[1] < 2 {
+                continue;
+            }
+
             // Find max intensity index and get corresponding scan time
             let max_index = xic_array
                 .column(1)
@@ -79,7 +83,6 @@ pub fn construct_xics<'a>(
 mod tests {
     use super::*;
     use std::collections::HashMap;
-    use std::{thread, time};
 
     #[test]
     fn test_construct_xics() {
