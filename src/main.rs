@@ -30,7 +30,7 @@ fn main() {
     );
     let args: Vec<String> = env::args().collect();
 
-    // Require exactly 3 arguments: program name, MS file path, and ion list name
+    // Require 3+ arguments: program name, MS file path, and ion list name
     if args.len() < 3 {
         eprintln!("Usage: {} <ion_list_name>  <ms_file_paths>", args[0]);
         process::exit(1);
