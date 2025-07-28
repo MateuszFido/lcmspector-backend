@@ -37,7 +37,7 @@ impl Compound {
             name: name.clone(),
             ions: ions
                 .into_iter()
-                .map(|(ion)| {
+                .map(|ion| {
                     let ion_name = format!("{ion}");
                     (
                         ion_name,

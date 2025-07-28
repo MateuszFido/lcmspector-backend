@@ -2,88 +2,164 @@ use crate::measurements::Compound;
 use mzdata::spectrum::MultiLayerSpectrum;
 use mzdata::spectrum::SpectrumLike;
 use ndarray::Array2;
-use std::iter::zip;
+use rayon::prelude::*;
+use std::collections::HashMap;
+use std::time::Instant;
 
+/// Optimized function to construct extracted ion chromatograms (XICs) from MS data
+/// 
+/// This implementation uses Rayon for parallel processing of compounds and ions,
+/// designed to be both thread-safe and efficient, making it suitable for both
+/// single and multi-process environments.
 pub fn construct_xics<'a>(
     data: &'a [MultiLayerSpectrum],
     ion_list: &'a [Compound],
     mass_accuracy: f64,
 ) -> Vec<Compound> {
-    let mut compounds = ion_list.to_vec();
-    for compound in &mut compounds {
-        for (ion_name, ion_data) in &mut compound.ions {
-            let mut intensities = Vec::new();
-            let mut scan_times = Vec::new();
-            println!("{ion_name}, {ion_data:?}");
-            // Calculate mass range
-            let mass = ion_name
-                .parse::<f64>()
-                .unwrap_or_else(|e| panic!("Failed to parse mass: {e}"));
-            let mass_range = (mass - 3.0 * mass_accuracy, mass + 3.0 * mass_accuracy);
-
-            // Safeguard for mass range
-            let mass_range = if mass_range.0 < 0.0 {
-                (0.0, mass_range.1)
-            } else {
-                mass_range
-            };
-
-            for spectrum in data {
-                if let Some(arrays) = spectrum.arrays.as_ref() {
-                    for (mz, intensity) in zip(
-                        arrays.mzs().unwrap().iter(),
-                        arrays.intensities().unwrap().iter(),
-                    ) {
-                        if *mz >= mass_range.0 && *mz <= mass_range.1 {
-                            intensities.push(*intensity as f64);
-                            scan_times.push(spectrum.description.acquisition.start_time());
-                        }
+    let start_time = Instant::now();
+    println!("Starting to construct XICs...");
+    
+    // Process compounds in parallel using Rayon
+    let compounds: Vec<Compound> = ion_list
+        .par_iter()
+        .map(|compound| {
+            // Clone the compound for mutation
+            let mut compound_clone = compound.clone();
+            
+            // Extract all ion names first to avoid borrowing issues
+            let ion_names: Vec<String> = compound_clone.ions.keys().cloned().collect();
+            
+            // Process each ion and collect results
+            let ion_results: Vec<(String, Option<f64>, Option<f64>)> = ion_names
+                .par_iter()
+                .map(|ion_name| {
+                    // Process each ion independently
+                    process_ion(ion_name, data, mass_accuracy)
+                })
+                .collect();
+            
+            // Update the compound with results
+            for (ion_name, ms_intensity, rt) in ion_results {
+                if let Some(ion_data) = compound_clone.ions.get_mut(&ion_name) {
+                    ion_data.insert("MS Intensity".to_string(), ms_intensity);
+                    if let Some(rt_value) = rt {
+                        ion_data.insert("RT".to_string(), Some(rt_value));
                     }
                 }
             }
+            
+            compound_clone
+        })
+        .collect();
+    
+    println!("Finished constructing XICs in {:.2?} seconds.", start_time.elapsed());
+    compounds
+}
 
-            // Create XIC array
-            let xic_array =
-                Array2::from_shape_vec((2, intensities.len()), [scan_times, intensities].concat())
-                    .expect("Failed to create XIC array");
+/// Process a single ion 
+fn process_ion(
+    ion_name: &str, 
+    data: &[MultiLayerSpectrum],
+    mass_accuracy: f64
+) -> (String, Option<f64>, Option<f64>) {
+    // Calculate mass range
+    let mass = ion_name
+        .parse::<f64>()
+        .unwrap_or_else(|e| panic!("Failed to parse mass: {e}"));
+    let mass_range = (mass - 3.0 * mass_accuracy, mass + 3.0 * mass_accuracy);
 
-            if xic_array.is_empty() {
-                ion_data.insert("MS Intensity".to_string(), None);
-                continue;
-            }
+    // Safeguard for mass range
+    let mass_range = if mass_range.0 < 0.0 {
+        (0.0, mass_range.1)
+    } else {
+        mass_range
+    };
 
-            // Update compound ion data
-            ion_data.insert("MS Intensity".to_string(), Some(xic_array.sum()));
+    // Collect intensity data for this ion efficiently
+    let (intensities, scan_times) = find_matching_intensities(data, mass_range);
 
-            if ion_data.get("MS Intensity").is_none() || xic_array.shape()[1] < 2 {
-                continue;
-            }
+    // Skip processing if no intensities found
+    if intensities.is_empty() {
+        return (ion_name.to_string(), None, None);
+    }
 
-            // Find max intensity index and get corresponding scan time
-            let max_index = xic_array
-                .column(1)
-                .iter()
-                .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .map(|(index, _)| index);
+    // Create XIC array
+    let xic_array = Array2::from_shape_vec(
+        (2, intensities.len()), 
+        [scan_times, intensities].concat()
+    ).expect("Failed to create XIC array");
 
-            let rt = if let Some(index) = max_index {
-                data[index].description.acquisition.start_time()
+    // Get the total intensity
+    let total_intensity = if xic_array.is_empty() {
+        None
+    } else {
+        Some(xic_array.sum())
+    };
+
+    // Find max intensity index and get corresponding scan time
+    let rt = if !xic_array.is_empty() && xic_array.shape()[1] >= 2 {
+        let max_index = xic_array
+            .column(1)
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .map(|(index, _)| index);
+
+        if let Some(index) = max_index {
+            if index < data.len() {
+                Some(data[index].description.acquisition.start_time())
             } else {
-                0.0
-            };
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
-            ion_data.insert("RT".to_string(), Some(rt));
+    (ion_name.to_string(), total_intensity, rt)
+}
+
+/// Find all matching intensities for a given mass range efficiently
+fn find_matching_intensities(
+    data: &[MultiLayerSpectrum], 
+    mass_range: (f64, f64)
+) -> (Vec<f64>, Vec<f64>) {
+    let mut intensities = Vec::new();
+    let mut scan_times = Vec::new();
+    
+    // Reserve capacity based on an estimate to reduce reallocations
+    let estimated_matches = data.len() / 10;
+    intensities.reserve(estimated_matches);
+    scan_times.reserve(estimated_matches);
+
+    for spectrum in data {
+        if let Some(arrays) = spectrum.arrays.as_ref() {
+            let mzs = arrays.mzs().unwrap();
+            let intensity_values = arrays.intensities().unwrap();
+            
+            let scan_time = spectrum.description.acquisition.start_time();
+            
+            // Linear scan for all values in the mass range
+            for i in 0..mzs.len() {
+                // Convert each mz value to f64 before comparison
+                let mz_value = mzs[i] as f64;
+                if mz_value >= mass_range.0 && mz_value <= mass_range.1 {
+                    intensities.push(intensity_values[i] as f64);
+                    scan_times.push(scan_time);
+                }
+            }
         }
     }
-    compounds
+    
+    (intensities, scan_times)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
-
+    
     #[test]
     fn test_construct_xics() {
         // open the ion list from ion_lists.json

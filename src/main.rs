@@ -2,7 +2,7 @@ pub mod loading;
 pub mod measurements;
 pub mod processing;
 
-use crate::loading::{load_ion_lists, load_ms1_scans};
+use crate::loading::{load_ion_lists, load_ms_scans};
 use crate::processing::construct_xics;
 use std::env;
 use std::process;
@@ -26,14 +26,13 @@ fn main() {
     println!("Reading from: {ms_file_path}");
     println!("Using ion list: {ion_list_name}");
 
-    let ms1_scans = load_ms1_scans(ms_file_path);
+    let (ms1_scans, _ms2_scans) = load_ms_scans(ms_file_path);
     let compounds = load_ion_lists(ion_list_name);
 
     let result = construct_xics(&ms1_scans, &compounds, 0.0001);
 
-    println!("Done");
-    for compound in &result {
-        println!("{compound}");
+    for compound in result {
+        println!("{}", compound);
     }
 
     process::exit(0);

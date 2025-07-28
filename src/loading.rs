@@ -6,23 +6,36 @@ use std::fs::File;
 use std::io::BufReader;
 use std::time::Instant;
 
-pub fn load_ms1_scans(path: &str) -> Vec<MultiLayerSpectrum> {
-    let now = Instant::now();
+pub fn load_ms_scans(file_path: &str) -> (Vec<MultiLayerSpectrum>, Vec<MultiLayerSpectrum>) {
+    let start_time = Instant::now();
 
-    // Load MzML file
-    let file = File::open(path).expect("Could not open file");
-    let reader = MzMLReader::new(file);
+    let file = match File::open(file_path) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Error opening file: {}", e);
+            return (Vec::new(), Vec::new());
+        }
+    };
+    let mzml_reader = MzMLReader::new(file);
 
-    // Parallel processing of scans
-    let ms1_scans: Vec<MultiLayerSpectrum> = reader.filter(|scan| scan.ms_level() == 1).collect();
+    let mut ms1_scans = Vec::new();
+    let mut ms2_scans = Vec::new();
+    for scan in mzml_reader {
+        match scan.ms_level() {
+            1 => ms1_scans.push(scan),
+            2 => ms2_scans.push(scan),
+            _ => (),
+        }
+    }
 
     println!(
-        "Loaded {} MS1 scans in {} seconds.",
+        "Loaded {} MS1 scans and {} MS2 scans in {:.2?} seconds.",
         ms1_scans.len(),
-        now.elapsed().as_secs_f32()
+        ms2_scans.len(),
+        start_time.elapsed()
     );
 
-    ms1_scans
+    (ms1_scans, ms2_scans)
 }
 
 pub fn load_ion_lists(ion_list_name: &str) -> Vec<Compound> {
