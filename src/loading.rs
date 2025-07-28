@@ -5,9 +5,21 @@ use rayon::iter::{ParallelIterator};
 use rayon::prelude::*;
 use serde_json::Value;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufRead, BufReader};
 use std::sync::Arc;
 use std::time::Instant;
+
+/// Read file paths from a text file
+pub fn read_file_paths(file_path: &str) -> Result<Vec<String>, std::io::Error> {
+    let file = File::open(file_path)?;
+    let reader = BufReader::new(file);
+    
+    reader
+        .lines()
+        .map(|line| line.map(|l| l.trim().to_string()))
+        .filter(|line| line.as_ref().map(|l| !l.is_empty()).unwrap_or(true))
+        .collect()
+}
 
 pub fn load_ms_scans(file_path: &str) -> (Vec<MultiLayerSpectrum>, Vec<MultiLayerSpectrum>) {
     let start_time = Instant::now();

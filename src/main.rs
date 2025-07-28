@@ -5,8 +5,6 @@ pub mod processing;
 use std::env;
 use std::process;
 use std::sync::Arc;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 use tokio::runtime;
 use futures::future::join_all;
 use std::path::Path;
@@ -29,7 +27,7 @@ fn main() {
     let file_list_path = &args[2];
 
     // Read file paths from the specified file
-    let file_paths = match read_file_paths(file_list_path) {
+    let file_paths = match loading::read_file_paths(file_list_path) {
         Ok(paths) => paths,
         Err(e) => {
             eprintln!("Error reading file list: {}", e);
@@ -58,18 +56,6 @@ fn main() {
     });
     
     process::exit(0);
-}
-
-/// Read file paths from a text file
-fn read_file_paths(file_path: &str) -> Result<Vec<String>, std::io::Error> {
-    let file = File::open(file_path)?;
-    let reader = BufReader::new(file);
-    
-    reader
-        .lines()
-        .map(|line| line.map(|l| l.trim().to_string()))
-        .filter(|line| line.as_ref().map(|l| !l.is_empty()).unwrap_or(true))
-        .collect()
 }
 
 async fn process_large_batch(
