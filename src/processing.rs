@@ -1,6 +1,5 @@
 use crate::measurements::Compound;
-use mzdata::spectrum::MultiLayerSpectrum;
-use mzdata::spectrum::SpectrumLike;
+use mzdata::spectrum::{MultiLayerSpectrum, SpectrumLike};
 use ndarray::Array2;
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -159,6 +158,9 @@ fn find_matching_intensities(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+    use std::io::BufReader;
+    use mzdata::{MzMLReader, spectrum::SpectrumLike};
     
     #[test]
     fn test_construct_xics() {
