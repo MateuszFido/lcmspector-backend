@@ -1,8 +1,7 @@
 use crate::measurements::Compound;
-use mzdata::spectrum::{MultiLayerSpectrum, SpectrumLike};
+use mzdata::spectrum::{MultiLayerSpectrum};
 use ndarray::Array2;
 use rayon::prelude::*;
-use std::collections::HashMap;
 use std::time::Instant;
 
 /// Optimized function to construct extracted ion chromatograms (XICs) from MS data
@@ -159,8 +158,7 @@ fn find_matching_intensities(
 mod tests {
     use super::*;
     use std::collections::HashMap;
-    use std::io::BufReader;
-    use mzdata::{MzMLReader, spectrum::SpectrumLike};
+    use mzdata::{spectrum::SpectrumLike};
     
     #[test]
     fn test_construct_xics() {

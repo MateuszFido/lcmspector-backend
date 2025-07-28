@@ -1,15 +1,13 @@
 use crate::measurements::Compound;
 use mzdata::spectrum::{MultiLayerSpectrum, SpectrumLike};
 use mzdata::MzMLReader;
-use rayon::iter::{ParallelIterator, Either, IntoParallelRefMutIterator};
+use rayon::iter::{ParallelIterator};
 use rayon::prelude::*;
 use serde_json::Value;
 use std::fs::File;
 use std::io::BufReader;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
-use indicatif::{ProgressBar, ProgressStyle};
-use num_cpus;
 
 pub fn load_ms_scans(file_path: &str) -> (Vec<MultiLayerSpectrum>, Vec<MultiLayerSpectrum>) {
     let start_time = Instant::now();
