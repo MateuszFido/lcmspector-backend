@@ -55,14 +55,7 @@ fn main() {
             results = loading::process_files_in_parallel(&file_paths, ion_list_name, 0.0001);
             println!("Processed {} files using standard parallel approach", results.len());
         }
-
-
     });
-
-    results.iter().for_each(|result| {
-        println!("Processed file: {result:?}");
-            });
-
     process::exit(0);
 }
 
