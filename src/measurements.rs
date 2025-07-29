@@ -2,6 +2,7 @@ use mzdata::spectrum::MultiLayerSpectrum;
 use std::collections::HashMap;
 use std::fmt;
 
+#[derive(Debug, Clone)]
 pub struct MSMeasurement {
     pub mass_accuracy: f32,
     pub ms1_scans: Vec<MultiLayerSpectrum>,
@@ -78,12 +79,9 @@ impl MSMeasurement {
     pub fn from_data(
         ms1_scans: Vec<MultiLayerSpectrum>,
         ms2_scans: Vec<MultiLayerSpectrum>,
-        ion_list: &Vec<Compound>,
+        xics: Vec<Compound>,
         mass_accuracy: f32,
     ) -> Self {
-        use crate::processing::construct_xics;
-
-        let xics = construct_xics(&ms1_scans, ion_list, mass_accuracy as f64);
 
         MSMeasurement {
             ms1_scans,

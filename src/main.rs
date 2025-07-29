@@ -44,17 +44,25 @@ fn main() {
         .build()
         .expect("Failed to create Tokio runtime");
     
+    let mut results = Vec::new();
+
     rt.block_on(async {
         if file_paths.len() > 25 {
             // For large batches, use hybrid approach (Tokio + Rayon)
-            process_large_batch(&file_paths, ion_list_name, 0.0001).await
+            results = process_large_batch(&file_paths, ion_list_name, 0.0001).await;
         } else {
             // For smaller batches, use standard Rayon approach
-            let results = loading::process_files_in_parallel(&file_paths, ion_list_name, 0.0001);
+            results = loading::process_files_in_parallel(&file_paths, ion_list_name, 0.0001);
             println!("Processed {} files using standard parallel approach", results.len());
         }
+
+
     });
-    
+
+    results.iter().for_each(|result| {
+        println!("Processed file: {result:?}");
+            });
+
     process::exit(0);
 }
 
@@ -62,7 +70,7 @@ async fn process_large_batch(
     file_paths: &[String],
     ion_list_name: &str,
     mass_accuracy: f64,
-) {
+) -> Vec<measurements::MSMeasurement> {
     let start = std::time::Instant::now();
     println!("Starting optimized large-batch processing for {} files...", file_paths.len());
     
@@ -98,7 +106,7 @@ async fn process_large_batch(
         
         tokio::spawn(async move {
             // Process this batch of files
-            process_file_batch(batch, ion_list_clone, mass_accuracy, progress_bar_clone).await
+            process_file_batch(batch, ion_list_clone, mass_accuracy as f32, progress_bar_clone).await
         })
     });
     
@@ -115,6 +123,13 @@ async fn process_large_batch(
         total_processed, start.elapsed()));
     
     println!("Large-batch processing completed in {:.2?} seconds", start.elapsed());
+    
+    // Flatten and collect the results
+    batch_results.into_iter()
+        .filter_map(|r| r.ok())
+        .flatten()
+        .collect()
+
 }
 
 /// Process a batch of files asynchronously
@@ -123,9 +138,9 @@ async fn process_large_batch(
 async fn process_file_batch(
     batch: Vec<String>,
     ion_list: Arc<Vec<measurements::Compound>>,
-    mass_accuracy: f64,
+    mass_accuracy: f32,
     progress_bar: Arc<ProgressBar>
-) -> Vec<(String, Vec<measurements::Compound>)> {
+) -> Vec<measurements::MSMeasurement> {
     let mut results = Vec::with_capacity(batch.len());
     
     for file_path in batch {
@@ -136,11 +151,13 @@ async fn process_file_batch(
         .unwrap_or_else(|| file_path.clone());
         
         // Process the file
-        let (ms1_scans, _) = loading::load_ms_scans(&file_path);
-        let compounds = processing::construct_xics(&ms1_scans, &ion_list, mass_accuracy);
+        let (ms1_scans, ms2_scans) = loading::load_ms_scans(&file_path);
+        let compounds = processing::construct_xics(&ms1_scans, &ion_list, mass_accuracy as f64);
         
         // Store the result
-        results.push((file_path, compounds));
+        results.push(measurements::MSMeasurement::from_data(
+            ms1_scans,  ms2_scans, compounds, mass_accuracy
+        ));
         
         // Update progress
         progress_bar.inc(1);

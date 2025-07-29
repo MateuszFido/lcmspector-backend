@@ -1,4 +1,6 @@
 use crate::measurements::Compound;
+use crate::measurements::MSMeasurement;
+use crate::processing::construct_xics;
 use mzdata::spectrum::{MultiLayerSpectrum, SpectrumLike};
 use mzdata::MzMLReader;
 use rayon::iter::{ParallelIterator};
@@ -52,28 +54,33 @@ pub fn load_ms_scans(file_path: &str) -> (Vec<MultiLayerSpectrum>, Vec<MultiLaye
 }
 
 /// Processes multiple MS files in parallel, returning a vector of results
-/// where each result contains the MS1 scans and processed compounds from each file
+/// where each result contains the MS1 scans, MS2 scans and processed compounds from each file
 pub fn process_files_in_parallel(
     file_paths: &[String],
     ion_list_name: &str,
     mass_accuracy: f64,
-) -> Vec<(String, Vec<Compound>)> {
+) -> Vec<MSMeasurement> {
     let start_time = Instant::now();
     println!("Starting parallel processing of {} files...", file_paths.len());
     
     // Load ion list once - it will be shared across all file processing tasks
     let ion_list = Arc::new(load_ion_lists(ion_list_name));
     
-    let results: Vec<(String, Vec<Compound>)> = file_paths
+    let results: Vec<MSMeasurement> = file_paths
         .par_iter()
         .map(|file_path| {
-            let (ms1_scans, _) = load_ms_scans(file_path);
-            let result = crate::processing::construct_xics(
+            let (ms1_scans, ms2_scans) = load_ms_scans(file_path);
+            let result = construct_xics(
                 &ms1_scans, 
                 &ion_list, 
                 mass_accuracy
             );
-            (file_path.clone(), result)
+            MSMeasurement::from_data(
+                ms1_scans, 
+                ms2_scans, 
+                result, 
+                mass_accuracy as f32
+            )
         })
         .collect();
 
