@@ -4,7 +4,8 @@ use std::fmt;
 
 pub struct MSMeasurement {
     pub mass_accuracy: f32,
-    pub data: Vec<MultiLayerSpectrum>,
+    pub ms1_scans: Vec<MultiLayerSpectrum>,
+    pub ms2_scans: Vec<MultiLayerSpectrum>,
     pub xics: Vec<Compound>,
 }
 
@@ -31,7 +32,6 @@ pub struct Compound {
 }
 
 impl Compound {
-    /// Constructor method equivalent to __init__
     pub fn new(name: String, ions: Vec<f64>, ion_info: Vec<String>) -> Self {
         Compound {
             name: name.clone(),
@@ -76,18 +76,20 @@ impl fmt::Display for Compound {
 impl MSMeasurement {
     /// Create an MSMeasurement from MultiLayerSpectrum data and a list of Compounds
     pub fn from_data(
-        data: Vec<MultiLayerSpectrum>,
+        ms1_scans: Vec<MultiLayerSpectrum>,
+        ms2_scans: Vec<MultiLayerSpectrum>,
         ion_list: &Vec<Compound>,
         mass_accuracy: f32,
     ) -> Self {
         use crate::processing::construct_xics;
 
-        let xics = construct_xics(&data, ion_list, mass_accuracy as f64);
+        let xics = construct_xics(&ms1_scans, ion_list, mass_accuracy as f64);
 
         MSMeasurement {
-            mass_accuracy,
-            data,
+            ms1_scans,
+            ms2_scans,
             xics,
+            mass_accuracy,
         }
     }
 }
