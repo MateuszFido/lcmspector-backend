@@ -8,7 +8,7 @@ This is a backend of [LCMSpector](https://github.com/MateuszFido/LCMSpector), or
 
 - Fast processing of .mzML files
 - Parallel scan extraction
-- MS1 level scan filtering
+- MS-level scan filtering
 - Performance timing for data loading
 - Ion list loading and processing
 - JSON serialization support
@@ -46,15 +46,15 @@ This is a backend of [LCMSpector](https://github.com/MateuszFido/LCMSpector), or
 
 ### Processing .mzML Files
 
-Run the application by providing one or more .mzML files as arguments:
+Run the application by providing the desired ion list (needs to be in ion_lists.json) and a file containing paths to mzML files
 
 ```bash
-cargo run -- path/to/file1.mzml path/to/file2.mzml
+cargo run -- ion_list file_with_paths_to_mzML
 ```
 
 Example:
 ```bash
-cargo run -- tests/ANIL_1mM_1_neg.mzml
+cargo run -- terpenoids file_paths.txt
 ```
 
 The tool will:
